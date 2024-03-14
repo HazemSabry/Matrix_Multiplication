@@ -6,6 +6,12 @@
 #define DEFAULT_SECOND_MATRIX_SURCE "b.txt"
 #define DEFAULT_RESULT_MATRIX_DESTINATION "c.txt"
 
+typedef struct {
+    int row;
+    int col;
+} thread_args_t;
+
+
 int row1, col1, row2, col2;
 int** matrix1;
 int** matrix2;
@@ -212,6 +218,41 @@ void mult_per_row (void) {
 	write_on_file("c_per_row.txt");
 }
 
+void *multiply_element(void *arg) {
+	thread_args_t *args = (thread_args_t *)arg;
+	int row = args->row;
+	int col = args->col;
+	int temp = 0;
+
+	for (int u = 0; u < row2; u++) {
+		temp += (matrix1[row][u] * matrix2[u][col]);
+	}
+	result_matrix[row][col] = temp;
+
+	pthread_exit(NULL);
+}
+
+void mult_per_element (void) {
+	pthread_t threads[row1 * col2];
+	thread_args_t thread_args[row1][col2];
+	int num_threads = 0;
+
+	for (int i = 0; i < row1; i++) {
+		for (int j = 0; j < col2; j++) {
+			thread_args[i][j].row = i;
+			thread_args[i][j].col = j;
+			pthread_create(&threads[num_threads], NULL, multiply_element, &thread_args[i][j]);
+			num_threads++;
+		}
+	}
+
+	for (int i = 0; i < num_threads; i++) {
+		pthread_join(threads[i], NULL);
+	}
+
+	write_on_file("c_per_element.txt");
+}
+
 int main(int argc, char* args[]){
 	char* sources_destination [3] = {
 					 DEFAULT_FIRST_MATRIX_SURCE,
@@ -230,7 +271,8 @@ int main(int argc, char* args[]){
 	read_matrix_from_file(sources_destination[1], 2);
 	result_matrix_allocate_memory();
 //	mult_per_matrix();
-	mult_per_row();
+//	mult_per_row();
+	mult_per_element();
 
 	free_space(result_matrix, row1);
 	free_space(matrix1, row1);
