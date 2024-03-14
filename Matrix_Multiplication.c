@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#define DEFAULT_FIRST_MATRIX_SURCE "a.txt"
-#define DEFAULT_SECOND_MATRIX_SURCE "b.txt"
-#define DEFAULT_RESULT_MATRIX_DESTINATION "c.txt"
+#include <sys/time.h>
+#define DEFAULT_FIRST_MATRIX_SURCE "a"
+#define DEFAULT_SECOND_MATRIX_SURCE "b"
+#define DEFAULT_RESULT_MATRIX_DESTINATION "c"
 
 typedef struct {
     int row;
@@ -29,12 +30,13 @@ void read_matrix_from_file(char* file_name, int matrix_num){
 	char* line;
 	int row, col = 3;
 	int** matrix;
+	char* filename = (char*) malloc(strlen(file_name) + strlen(".txt") + 1);
+	strcpy(filename, file_name);
+	strcat(filename,".txt");
 
-//	sprintf(file_name + strlen(file_name),".txt");
-//printf("%s\n",file_name);
-	file = fopen(file_name, "r");
+	file = fopen(filename, "r");
 	if (file == NULL) {
-		printf("File name \"%s\" not found in the direction.\n", file_name);
+		printf("File name \"%s\" not found in the direction.\n", filename);
 		exit(1);
 	}
 	fscanf(file, "row=%d col=%d", &row, &col);
@@ -158,7 +160,7 @@ void write_on_file (char* file_name) {
 		}
 		fprintf(file, "\n");
 	}
-	
+	fclose(file);
 	printf("row1 = %d ", row1);
 	printf("col2 = %d\n", col2);
 	printf("result mattrix:\n");
@@ -170,9 +172,14 @@ void write_on_file (char* file_name) {
 	}
 }
 
-void mult_per_matrix(void) {
+void mult_per_matrix(char* destination) {
+	struct timeval stop, start;
 	int temp;
+	char* filename = (char*) malloc(strlen(destination) + strlen("_per_matrix.txt") + 1);
+	strcpy(filename, destination);
+	strcat(filename,"_per_matrix.txt");
 
+	gettimeofday(&start, NULL);
 	for (int i = 0; i < row1; i++) {
 		for (int j = 0; j < col2; j++) {
 			temp = 0;
@@ -182,7 +189,13 @@ void mult_per_matrix(void) {
 			result_matrix[i][j] = temp;
 		}
 	}
-	write_on_file("c_per_matrix.txt");
+	gettimeofday(&stop, NULL);
+
+	printf("Number of threads created: 0 OR 1(main thread)\n");
+	printf("Seconds taken: %lu\n", (stop.tv_sec - start.tv_sec));
+	printf("Microseconds taken: %lu\n", (stop.tv_usec - start.tv_usec));
+	write_on_file(filename);
+	printf("\n");
 }
 
 void* multiply_row(void* arg) {
@@ -200,11 +213,16 @@ void* multiply_row(void* arg) {
 	pthread_exit(NULL);
 }
 
-void mult_per_row (void) {
+void mult_per_row (char* destination) {
+	struct timeval stop, start;
 	pthread_t threads[row1];
 	int thread_args[row1];
 	int num_threads = 0;
+	char* filename = (char*) malloc(strlen(destination) + strlen("_per_row.txt") + 1);
+	strcpy(filename, destination);
+	strcat(filename,"_per_row.txt");
 
+	gettimeofday(&start, NULL);
 	for (int i = 0; i < row1; i++) {
 		thread_args[num_threads] = i;
 		pthread_create(&threads[num_threads], NULL, multiply_row, &thread_args[num_threads]);
@@ -214,8 +232,13 @@ void mult_per_row (void) {
 	for (int i = 0; i < num_threads; i++) {
 		pthread_join(threads[i], NULL);
 	}
+	gettimeofday(&stop, NULL);
 
-	write_on_file("c_per_row.txt");
+	printf("Number of threads created: %d\n", num_threads);
+	printf("Seconds taken: %lu\n", (stop.tv_sec - start.tv_sec));
+	printf("Microseconds taken: %lu\n", (stop.tv_usec - start.tv_usec));
+	write_on_file(filename);
+	printf("\n");
 }
 
 void *multiply_element(void *arg) {
@@ -232,11 +255,16 @@ void *multiply_element(void *arg) {
 	pthread_exit(NULL);
 }
 
-void mult_per_element (void) {
+void mult_per_element (char* destination) {
+	struct timeval stop, start;
 	pthread_t threads[row1 * col2];
 	thread_args_t thread_args[row1][col2];
 	int num_threads = 0;
+	char* filename = (char*) malloc(strlen(destination) + strlen("_per_element.txt") + 1);
+	strcpy(filename, destination);
+	strcat(filename,"_per_element.txt");
 
+	gettimeofday(&start, NULL);
 	for (int i = 0; i < row1; i++) {
 		for (int j = 0; j < col2; j++) {
 			thread_args[i][j].row = i;
@@ -249,8 +277,12 @@ void mult_per_element (void) {
 	for (int i = 0; i < num_threads; i++) {
 		pthread_join(threads[i], NULL);
 	}
+	gettimeofday(&stop, NULL);
 
-	write_on_file("c_per_element.txt");
+	printf("Number of threads created: %d\n", num_threads);
+	printf("Seconds taken: %lu\n", (stop.tv_sec - start.tv_sec));
+	printf("Microseconds taken: %lu\n", (stop.tv_usec - start.tv_usec));
+	write_on_file(filename);
 }
 
 int main(int argc, char* args[]){
@@ -270,9 +302,9 @@ int main(int argc, char* args[]){
 	read_matrix_from_file(sources_destination[0], 1);
 	read_matrix_from_file(sources_destination[1], 2);
 	result_matrix_allocate_memory();
-//	mult_per_matrix();
-//	mult_per_row();
-	mult_per_element();
+	mult_per_matrix(sources_destination[2]);
+	mult_per_row(sources_destination[2]);
+	mult_per_element(sources_destination[2]);
 
 	free_space(result_matrix, row1);
 	free_space(matrix1, row1);
